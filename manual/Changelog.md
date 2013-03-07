@@ -1,3 +1,7 @@
+###v0.3.1
+- made **Hermes()** function trigger the operations of the **Hermes class**
+- fixed **Hermes::getLastestScrollID()** when db is empty
+
 ###v0.3.0
 - Started rewrite from previous experimental versions. Excluded non tested methods, for now.
 - **Hermes::getIdentity()**: generates a base128 *identity* of current visitor (used to be base75). The base can be changed by **HERMES_IDENTITY_BASE**. Also provides a method of rebuilding an *identity* based upon

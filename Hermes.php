@@ -23,7 +23,9 @@
 
 require_once(dirname(__FILE__).DIRECTORY_SEPARATOR.'Hermes.settings.php');
 
-function Hermes($record=array()){
+function Hermes($record=array(), $value=NULL){
+	if(!is_array($record)){ $record = array((string) $record => (string) $value); }
+
 	global $__HERMES_RECORD;
 	if(!isset($__HERMES_RECORD) || !(is_object($__HERMES_RECORD) && get_class($__HERMES_RECORD) =='Hermes' ) ){
 		$__HERMES_RECORD = new Hermes();
@@ -31,7 +33,7 @@ function Hermes($record=array()){
 	$__HERMES_RECORD->build_record($record);
 }
 class Hermes{
-	public function Version($f=FALSE){ return '0.3.0'; }
+	public function Version($f=FALSE){ return '0.3.1'; }
 	public function Product_url($u=FALSE){ return ($u === TRUE ? "https://github.com/sentfanwyaerda/Hermes" : "http://sent.wyaerda.org/Hermes/?version=".self::Version(TRUE).'&license='.str_replace(' ', '+', self::License()) );}
 	public function Product($full=FALSE){ return "Hermes".(!($full===FALSE) ? " ".self::version(TRUE) : NULL); }
 	public function License($with_link=FALSE){ return ($with_link ? '<a href="'.self::License_url().'">' : NULL).'cc-by-nd 3.0'.($with_link ? '</a>' : NULL); }
@@ -55,7 +57,7 @@ class Hermes{
 	public function build_record($items=array(), $level=7, $do_write=TRUE){
 		$identity = self::getIdentity($items);
 		$dbfile = self::getCurrentScrollFile();
-		
+		#/*debug*/ print '<!-- Hermes::build_record \$dbfile: '.print_r($dbfile, TRUE).' -->'."\n";
 		
 		if(!is_array($items)){$items = array('item'=>$items);}
 
@@ -177,7 +179,13 @@ class Hermes{
 	}
 	public function getLatestScrollID($list=FALSE, $check=FALSE, $result=NULL){ #$result = (array) EMPTY | NULL
 		if($list===FALSE){ $list = self::listScrolls();}
-		if(!is_array($list)){ return FALSE; }
+		#/*debug*/ print '<!-- Hermes::getLatestScrollID \$list '.print_r($list, TRUE).' -->'."\n";
+		if(!is_array($list)){
+			return FALSE;
+		} elseif(count($list) == 0){  /*none existing means start current date*/ //str_replace(HERMES_SCROLL_FORMAT_DROP, '', date(HERMES_SCROLL_FORMAT));
+			$list = array(date(str_replace(str_replace('0', 'x', HERMES_SCROLL_FORMAT_DROP), '', HERMES_SCROLL_FORMAT)).HERMES_SCROLL_EXTENSION );
+		}
+		#/*debug*/ print '<!-- \"\" \$list  '.print_r($list, TRUE).' -->'."\n";
 		$set = array();
 		foreach($list as $i=>$scroll){
 			$set[$i] = self::_read_scroll_name($scroll);
@@ -211,6 +219,7 @@ class Hermes{
 	public function getCurrentScrollID(){
 		$current = array(); $bool = TRUE;
 		$latest = self::getLatestScrollID(FALSE, TRUE, array());
+		#/*debug*/ print '<!-- Hermes::getCurrentScrollID \$latest '.print_r($latest, TRUE).' -->'."\n";
 		if($bool == is_array($latest)){ foreach($latest as $t=>$v){
 			if(strlen($t)==1 && $t!='x'){ #in_array($t, array('Y','m'))
 				$bool = ($bool && ($v == date((string) $t)));

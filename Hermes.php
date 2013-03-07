@@ -23,13 +23,13 @@
 
 require_once(dirname(__FILE__).DIRECTORY_SEPARATOR.'Hermes.settings.php');
 
-#function Hermes($record=array()){
-#	global $__HERMES_RECORD;
-#	if(!isset($__HERMES_RECORD) || !(is_object($__HERMES_RECORD) && get_class($__HERMES_RECORD) =='Hermes' ) ){
-#		$__HERMES_RECORD = new Hermes();
-#	}
-#	$__HERMES_RECORD->Messenger($record);
-#}
+function Hermes($record=array()){
+	global $__HERMES_RECORD;
+	if(!isset($__HERMES_RECORD) || !(is_object($__HERMES_RECORD) && get_class($__HERMES_RECORD) =='Hermes' ) ){
+		$__HERMES_RECORD = new Hermes();
+	}
+	$__HERMES_RECORD->build_record($record);
+}
 class Hermes{
 	public function Version($f=FALSE){ return '0.3.0'; }
 	public function Product_url($u=FALSE){ return ($u === TRUE ? "https://github.com/sentfanwyaerda/Hermes" : "http://sent.wyaerda.org/Hermes/?version=".self::Version(TRUE).'&license='.str_replace(' ', '+', self::License()) );}
@@ -40,24 +40,94 @@ class Hermes{
 	public function Product_file($full=FALSE){ return ($full ? self::Product_base() : NULL).basename(__FILE__); }
 	
 	
-	private $_record = array();
+	private $_record = NULL;
 	public function Hermes(){
 		$this->_record = array(/**/);
 	}
 	public function Messenger($record=array()){
-		$this->_record = array_merge($record, $this->_record);
+		#$this->_record = array_merge($record, $this->_record);
 	}
 	public /*bool*/ function deliver(){
 		/*(re)writes log entry*/
 		if(HERMES_ENCRYPTED_RECORD){ /*encrypt record before writing*/ }
 		return FALSE;
 	}
+	public function build_record($items=array(), $level=7, $do_write=TRUE){
+		$identity = self::getIdentity($items);
+		$dbfile = self::getCurrentScrollFile();
+		
+		
+		if(!is_array($items)){$items = array('item'=>$items);}
+
+		if(!($this->_record == NULL)){ #loads current record to values
+			$input = json_decode(substr(trim($this->_record), 0, -1), TRUE);
+		}
+		else { 
+			$input = array(
+				'when' => date('c'),
+				'identity' => $identity,
+				);
+		}
+		$input = array_merge($input, $items);
+
+		
+		$flags = array();
+		$l = str_repeat('0', 6).decbin($level);
+		if($l{strlen($l)-1}==1) $flags = array_merge($flags, array('HTTP_REFERER'));
+		if($l{strlen($l)-2}==1 || ($l{strlen($l)-5}=='0' && $l{strlen($l)-3}==1)){ $input['identity'] = $identity; }
+		else{ unset($input['identity']); unset($input['robot']); }
+		if($l{strlen($l)-3}==1){ if($l{strlen($l)-5}==1 || self::_identity_known($identity, $dbfile)=='0'){
+			$flags = array_merge($flags, array('HTTP_USER_AGENT','REMOTE_ADDR','REMOTE_HOST','HTTP_ACCEPT_LANGUAGE'));
+		}}
+		if($l{strlen($l)-4}==1) $flags = array_merge($flags, array('PHP_SELF','QUERY_STRING'));
+		if($l{strlen($l)-6}==1){
+			$input['debug:level'] = $level.':'.$l;
+			$input['debug:identity:known'] = self::_identity_known($identity, $dbfile);
+		}
+		foreach($flags as $key){
+			if(isset($_SERVER[$key])){$input[$key] = $_SERVER[$key];}
+		}
+
+		$rec = array();
+		$record = '{';
+		foreach($input as $el=>$val){
+			$rec[] = '"'.$el.'": "'.str_replace(array('\\','"'), array('\\\\','\"'), $val).'"';
+		}
+		$record .= implode(', ',$rec);
+		$record .= "},\r\n";
+
+		if($do_write==TRUE){
+			if($this->_record == NULL){ #ADD RECORD
+				$fp = fopen($dbfile, 'a');
+				fwrite($fp, $record);
+				fclose($fp);
+			}
+			else{ #UPDATE RECORD
+				$fp = fopen($dbfile, 'r+');
+				$dbraw = fread($fp, filesize($dbfile));
+				$dbraw = str_replace($this->_record, $record, $dbraw);
+				fwrite($fp, $dbraw);
+				fclose($fp);
+			}
+		}
+		$this->_record = $record;
 	
-	public function getIdentity($a=FALSE, $b=FALSE, $c=FALSE, $d=FALSE){
-		$a = ($a === FALSE ? $_SERVER['REMOTE_ADDR']: $a);
-		$b = ($b === FALSE ? $_SERVER['REMOTE_HOST']: $b);
-		$c = ($c === FALSE ? $_SERVER['HTTP_USER_AGENT']: $c);
-		$d = ($d === FALSE ? $_SERVER['HTTP_ACCEPT_LANGUAGE']: $d);		
+		return $record;
+	}
+	private function _identity_known($id, $dbfile){
+		if(!file_exists($dbfile)){ return FALSE; }
+		if(strlen($id) < 4){ return FALSE; }
+		$dbraw = file_get_contents($dbfile);
+		$raw = (int) '0'; #$raw = preg_match('#"identity": "'.$id.'"#i', $dbraw);
+		$clean = (int) preg_match('#"identity": "'.self::_preg_unbracked($id).'"#i', $dbraw);
+		return ($raw == (int) '0' && $clean > (int) '0' ? $clean : $raw);
+	}
+	
+	public function getIdentity( /*mixed*/ $a=FALSE, $b=FALSE, $c=FALSE, $d=FALSE){
+		$a = (is_array($a) && isset($a['REMOTE_ADDR']) ? $a['REMOTE_ADDR'] : ($a === FALSE || is_array($a) ? $_SERVER['REMOTE_ADDR']: $a));
+		$b = (is_array($a) && isset($a['REMOTE_HOST']) ? $a['REMOTE_HOST'] : ($b === FALSE && isset($_SERVER['REMOTE_HOST']) ? $_SERVER['REMOTE_HOST'] : $b));
+		$c = (is_array($a) && isset($a['HTTP_USER_AGENT']) ? $a['HTTP_USER_AGENT'] : ($c === FALSE ? $_SERVER['HTTP_USER_AGENT']: $c));
+		$d = (is_array($a) && isset($a['HTTP_ACCEPT_LANGUAGE']) ? $a['HTTP_ACCEPT_LANGUAGE'] : ($d === FALSE ? $_SERVER['HTTP_ACCEPT_LANGUAGE']: $d));		
 		$hash = md5($c.$a.$b.$d);
 		$identity = Xnode::large_base_convert($hash,16,HERMES_IDENTITY_BASE);
 		/*"-fix*/ $identity = str_replace('"', HERMES_BASE_FIX_CHARACTER, $identity);
@@ -65,21 +135,21 @@ class Hermes{
 	}
 	public function getScroll($current=TRUE, $multiple=FALSE){
 		if($current == TRUE && $multiple == FALSE){ return self::getLatestScrollID(); }
-		$dbname = date(HERMES_SCROLL_FORMAT);
-		$list = self::listScrolls(str_replace(HERMES_SCROLL_FORMAT_DROP, '', str_replace('x', '0', $dbname)));
-		
-		if($multiple === FALSE){
-			$dbname = str_replace(HERMES_SCROLL_FORMAT_DROP, '', $dbname);
-			$dbfile = HERMES_SCROLL_LOCATION.$dbname.HERMES_SCROLL_EXTENSION;
-			return $dbfile;
-		}
-		else /*!($multiple === FALSE)*/{
-			$set = array();
-			foreach($list as $i=>$dbname){
-				$set[$i] = HERMES_SCROLL_LOCATION.str_replace(HERMES_SCROLL_FORMAT_DROP, '', $dbname).HERMES_SCROLL_EXTENSION;
-			}
-			return $set;
-		}
+		#$dbname = date(HERMES_SCROLL_FORMAT);
+		#$list = self::listScrolls(str_replace(HERMES_SCROLL_FORMAT_DROP, '', str_replace('x', '0', $dbname)));
+		#
+		#if($multiple === FALSE){
+		#	$dbname = str_replace(HERMES_SCROLL_FORMAT_DROP, '', $dbname);
+		#	$dbfile = HERMES_SCROLL_LOCATION.$dbname.HERMES_SCROLL_EXTENSION;
+		#	return $dbfile;
+		#}
+		#else /*!($multiple === FALSE)*/{
+		#	$set = array();
+		#	foreach($list as $i=>$dbname){
+		#		$set[$i] = HERMES_SCROLL_LOCATION.str_replace(HERMES_SCROLL_FORMAT_DROP, '', $dbname).HERMES_SCROLL_EXTENSION;
+		#	}
+		#	return $set;
+		#}
 	}
 	public function listScrolls($a=FALSE, $b=FALSE){
 		if(is_array($a)){
@@ -154,6 +224,9 @@ class Hermes{
 		#/*debug*/ return array('scroll'=> $current['original'], 'current'=>$current, 'latest'=>$latest, 'bool'=>$bool);
 		return $current['original'];
 	}
+	public function getCurrentScrollFile(){
+		return HERMES_SCROLL_LOCATION.self::getCurrentScrollID().HERMES_SCROLL_EXTENSION;
+	}
 	private /*array*/ function _read_scroll_name($scroll){
 		$i = -1; $set[$i] = array();
 		$set[$i] = array('original'=>preg_replace('#'.HERMES_SCROLL_EXTENSION.'$#', '', $scroll));
@@ -162,7 +235,7 @@ class Hermes{
 			$set[$i]['x'] = 0;
 		}
 		else { $format = HERMES_SCROLL_FORMAT; }
-		$pattern = preg_replace('#[a-z]#i', '([0-9]+)', $format).'('.HERMES_SCROLL_EXTENSION.')?'; 
+		$pattern = preg_replace('#[a-z]#i', '([0-9]+)', self::_preg_unbracked($format)).'('.HERMES_SCROLL_EXTENSION.')?'; 
 		$matchstr = preg_replace('#[^a-z]#i', '', $format);
 		preg_match('#^'.$pattern.'$#', $scroll, $dummy);
 		#/*debug*/ $set[$i]['dummy'] = $dummy; $set[$i]['pattern'] = $pattern; $set[$i]['matchstr'] = $matchstr; 
@@ -170,6 +243,9 @@ class Hermes{
 			if(isset($matchstr{$d-1})){ $set[$i][$matchstr{$d-1}] = $v; }
 		}
 		return $set[$i];
+	}
+	private function _preg_unbracked($str){
+		return str_replace(array('[',']','{','}','(',')','$','+','^'), array('\[','\]','\{','\}','\(','\)','\$','\+','\^'), $str);
 	}
 }
 

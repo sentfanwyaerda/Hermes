@@ -1,0 +1,5 @@
+# Download your personal copy from http://dev.maxmind.com/geoip/geolite and save it in tools/
+GeoIPCountryWhois.csv
+
+# Ignoring all generated data
+*.hermes

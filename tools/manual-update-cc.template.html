@@ -1,0 +1,44 @@
+<div id="dbupdatecc">
+<style>
+#dbupdatecc select, #dbupdatecc input { font-size: 9pt; }
+#dbupdatecc select.smaller { font-size: 7pt; }
+#dbupdatecc div.border, #dbupdatecc span.border {border: 1px solid #DDDDDD; background-color: #DDDDDD; border-top: 1px solid #CCCCCC; border-right: 1px solid #CCCCCC; padding: 0; margin: 0; border-radius: 4px; -moz-border-radius: 4px; }
+</style>
+<table><tr><td>
+<form method="POST" action="./db-update-cc.php" name="hiddenform">
+<div class="border">
+<select name="for_m" onChange="realform.for.value=hiddenform.for_y.value+'-'+hiddenform.for_m.value;" style="text-align: right; ">
+	<option value="01" %select:for-m[01]%>January</option>
+	<option value="02" %select:for-m[02]%>February</option>
+	<option value="03" %select:for-m[03]%>March</option>
+	<option value="04" %select:for-m[04]%>April</option>
+	<option value="05" %select:for-m[05]%>May</option>
+	<option value="06" %select:for-m[06]%>June</option>
+	<option value="07" %select:for-m[07]%>July</option>
+	<option value="08" %select:for-m[08]%>August</option>
+	<option value="09" %select:for-m[09]%>September</option>
+	<option value="10" %select:for-m[10]%>October</option>
+	<option value="11" %select:for-m[11]%>November</option>
+	<option value="12" %select:for-m[12]%>December</option>
+</select><select name="for_y" onChange="realform.for.value=hiddenform.for_y.value+'-'+hiddenform.for_m.value;">
+	<option value="2011" %select:for-y[2011]%>2011</option>
+	<option value="2012" %select:for-y[2012]%>2012</option>
+	<option value="2013" %select:for-y[2013]%>2013</option>
+</select>
+</div>
+</form></td><td>
+<form method="GET" action="./db-update-cc.php" name="realform">
+<input type="hidden" name="for" value="%for-y%-%for-m%" />
+
+<select name="force">
+	<option value="html" %select:force[html]%>HTML</option>
+	<option value="text" %select:force[text]%>TEXT</option>
+	<option value="json" %select:force[json]%>JSON</option>
+</select>
+
+<input type="submit" value="update" onClick="realform.for.value=hiddenform.for_y.value+'-'+hiddenform.for_m.value;this.form.submit();">
+
+%progress-bar%
+<input type="submit" name="action" value="clear" onClick="realform.action.value='clear';this.form.submit();" />
+</form>
+</td></tr></table></div>

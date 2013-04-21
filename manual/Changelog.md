@@ -1,3 +1,7 @@
+###v0.3.2
+- added **[Hermes_Filter](https://github.com/sentfanwyaerda/Hermes/blob/master/manual/Filter.md)** and **[Hermes_Analyse](https://github.com/sentfanwyaerda/Hermes/blob/master/manual/Analyse.md)**
+- fixed *REMOTE_ADDR_CC* auto-commit if GeoIP available
+
 ###v0.3.1
 - made **Hermes()** function trigger the operations of the **Hermes class**
 - fixed **Hermes::getLastestScrollID()** when db is empty

@@ -33,7 +33,7 @@ function Hermes($record=array(), $value=NULL){
 	$__HERMES_RECORD->build_record($record);
 }
 class Hermes{
-	public function Version($f=FALSE){ return '0.3.1'; }
+	public function Version($f=FALSE){ return '0.3.2'; }
 	public function Product_url($u=FALSE){ return ($u === TRUE ? "https://github.com/sentfanwyaerda/Hermes" : "http://sent.wyaerda.org/Hermes/?version=".self::Version(TRUE).'&license='.str_replace(' ', '+', self::License()) );}
 	public function Product($full=FALSE){ return "Hermes".(!($full===FALSE) ? " ".self::version(TRUE) : NULL); }
 	public function License($with_link=FALSE){ return ($with_link ? '<a href="'.self::License_url().'">' : NULL).'cc-by-nd 3.0'.($with_link ? '</a>' : NULL); }
@@ -88,6 +88,9 @@ class Hermes{
 		}
 		foreach($flags as $key){
 			if(isset($_SERVER[$key])){$input[$key] = $_SERVER[$key];}
+			if($key == 'REMOTE_ADDR' && function_exists('geoip_country_code_by_name')){
+				$input['REMOTE_ADDR_CC'] = /*@ hides notice-warning on local addresses*/ @geoip_country_code_by_name($_SERVER[$key]);
+			}
 		}
 
 		$rec = array();
@@ -235,7 +238,11 @@ class Hermes{
 		return $current['original'];
 	}
 	public function getCurrentScrollFile(){
-		return HERMES_SCROLL_LOCATION.self::getCurrentScrollID().HERMES_SCROLL_EXTENSION;
+		return self::getScrollFile();
+	}
+	public function getScrollFile($scroll=NULL){
+		if($scroll === NULL){ $scroll = self::getCurrentScrollID(); }
+		return HERMES_SCROLL_LOCATION.$scroll.HERMES_SCROLL_EXTENSION;
 	}
 	private /*array*/ function _read_scroll_name($scroll){
 		$i = -1; $set[$i] = array();
@@ -254,8 +261,71 @@ class Hermes{
 		}
 		return $set[$i];
 	}
+	
+	
+	
+	/**************************************************
+	 * LIBRARY
+	 **************************************************/
+
+	function escape_preg_chars($str, $qout=array(), $merge=FALSE){
+		if($merge !== FALSE){
+			$qout = array_merge(array('\\'), (is_array($qout) ? $qout : array($qout)), array('[',']','(',')','{','}','$','+','^','-'));
+			#/*debug*/ print_r($qout);
+		}
+		if(is_array($qout)){
+			$i = 0;
+			foreach($qout as $k=>$v){
+				if($i == $k){
+					$str = str_replace($v, '\\'.$v, $str);
+				} else{
+					$str = str_replace($k, $v, $str);				
+				}
+				$i++;
+			}
+		}
+		else{ $str = str_replace($qout, '\\'.$qout, $str); }
+		return $str;
+	}
 	private function _preg_unbracked($str){
-		return str_replace(array('[',']','{','}','(',')','$','+','^'), array('\[','\]','\{','\}','\(','\)','\$','\+','\^'), $str);
+		return self::escape_preg_chars($str, array(), TRUE);
+	}
+	public function json_decode($json, $assoc=/*FALSE*/TRUE){ /*patching the UTF8 freakability of json_decode */
+		$set = json_decode(utf8_encode($json), $assoc);
+		if($assoc === FALSE){
+			#utf8_decode (object->key)
+		}
+		else{
+			if(is_array($set)){ foreach($set as $key=>$value){
+				$set[$key] = utf8_decode($value);
+			}}
+		}
+		return $set;
+	}
+	public function human_readable_json_last_error(){
+		switch (json_last_error()) {
+			case JSON_ERROR_NONE:
+				return 'No errors';
+			break;
+			case JSON_ERROR_DEPTH:
+				return 'Maximum stack depth exceeded';
+			break;
+			case JSON_ERROR_STATE_MISMATCH:
+				return 'Underflow or the modes mismatch';
+			break;
+			case JSON_ERROR_CTRL_CHAR:
+				return 'Unexpected control character found';
+			break;
+			case JSON_ERROR_SYNTAX:
+				return 'Syntax error, malformed JSON';
+			break;
+			case JSON_ERROR_UTF8:
+				return 'Malformed UTF-8 characters, possibly incorrectly encoded';
+			break;
+			default:
+				return 'Unknown error';
+			break;
+		}
 	}
 }
 

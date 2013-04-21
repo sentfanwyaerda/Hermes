@@ -100,6 +100,7 @@ class Hermes{
 
 		if($do_write==TRUE){
 			if($this->_record == NULL){ #ADD RECORD
+				if(!file_exists($dbfile)){ touch($dbfile); }
 				$fp = fopen($dbfile, 'a');
 				fwrite($fp, $record);
 				fclose($fp);

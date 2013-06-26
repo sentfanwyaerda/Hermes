@@ -270,7 +270,7 @@ class Hermes{
 
 	function escape_preg_chars($str, $qout=array(), $merge=FALSE){
 		if($merge !== FALSE){
-			$qout = array_merge(array('\\'), (is_array($qout) ? $qout : array($qout)), array('[',']','(',')','{','}','$','+','^','-'));
+			$qout = array_merge(array('\\'), (is_array($qout) ? $qout : array($qout)), array('[',']','(',')','{','}','$','+','^','-','#'));
 			#/*debug*/ print_r($qout);
 		}
 		if(is_array($qout)){

@@ -103,17 +103,17 @@ class Hermes{
 
 		if($do_write==TRUE){
 			if($this->_record == NULL){ #ADD RECORD
-				if(!file_exists($dbfile)){ touch($dbfile); }
-				$fp = fopen($dbfile, 'a');
-				fwrite($fp, $record);
-				fclose($fp);
+				if(!file_exists($dbfile)){ @touch($dbfile); }
+				$fp = @fopen($dbfile, 'a');
+				@fwrite($fp, $record);
+				@fclose($fp);
 			}
 			else{ #UPDATE RECORD
-				$fp = fopen($dbfile, 'r+');
-				$dbraw = fread($fp, filesize($dbfile));
+				$fp = @fopen($dbfile, 'r+');
+				$dbraw = @fread($fp, filesize($dbfile));
 				$dbraw = str_replace($this->_record, $record, $dbraw);
-				fwrite($fp, $dbraw);
-				fclose($fp);
+				@fwrite($fp, $dbraw);
+				@fclose($fp);
 			}
 		}
 		$this->_record = $record;
@@ -137,6 +137,7 @@ class Hermes{
 		$hash = md5($c.$a.$b.$d);
 		$identity = Xnode::large_base_convert($hash,16,HERMES_IDENTITY_BASE);
 		/*"-fix*/ $identity = str_replace('"', HERMES_BASE_FIX_CHARACTER, $identity);
+		//*debug*/ print '<!-- '.$c.$a.$b.$d.' = '.$hash.' -->';
 		return $identity;
 	}
 	public function getScroll($current=TRUE, $multiple=FALSE){
@@ -169,7 +170,7 @@ class Hermes{
 		#elseif($b == FALSE && is_string($a)){ /*get pattern 'Y-m' remapped on HERMES_SCROLL_FORMAT*/ }
 		
 			#gets all valid Scrolls
-			$list = scandir(HERMES_SCROLL_LOCATION);
+			$list = @scandir(HERMES_SCROLL_LOCATION); /*fix*/ if(!is_array($list)){ $list = array(); }
 			$format = HERMES_SCROLL_FORMAT;
 			if(isset($condition) && is_array($condition)){foreach($condition as $t=>$v){
 				if(is_array($v)){ $format = str_replace($t, '('.implode('|', $v).')', $format); }
